@@ -1,7 +1,7 @@
 [project]
 name = "dsmq"
 version = "0.1.0"
-description = "Add your description here"
+description = "A dead simple missage queue"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
