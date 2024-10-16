@@ -62,7 +62,6 @@ def handle_socket(socket_conn):
         timestamp = time.time()
 
         if msg["action"] == "put":
-
             msg["timestamp"] = timestamp
             cursor.execute(
                 """

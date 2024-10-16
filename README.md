@@ -1,14 +1,20 @@
 # Dead Simple Message Queue
 
+## What it does
+
+TODO:
+dsmq is a central location
+
+## How to use it
+
 ### Install
 
 ```bash
 pip install dsmq
 ```
-
 ### Create a dsmq server
 
-As in `example_server.py`
+As in `src/dsmq/example_server.py`
 
 ```python
 from dsmq import dsmq
@@ -18,7 +24,7 @@ dsmq.serve(host="127.0.0.1", port=12345)
 
 ### Add a message to a queue
 
-As in `example_put_client.py`
+As in `src/dsmq/example_put_client.py`
 
 ```python
 import json
@@ -33,6 +39,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
 ### Read a message from a queue
 
+As in `src/dsmq/example_get_client.py`
 
 ```python
 import json
@@ -55,6 +62,34 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 ### Demo
 
 1. Open 3 separate terminal windows.
-1. In the first, run `example_server.py`.
-1. In the second, run `example_put_client.py`.
-1. In the third, run `example_get_client.py`.
+1. In the first, run `src/dsmq/example_server.py`.
+1. In the second, run `src/dsmq/example_put_client.py`.
+1. In the third, run `src/dsmq/example_get_client.py`.
+
+
+## How it works
+
+### Expected behavior and limitations
+
+- Many clients can read messages of the same topic. It is a one-to-many
+pulication model.
+
+- A get client will not be able to read any of the messages that were put into
+the queue before it started.
+
+- A client will get the oldest message available on a requested topic.
+Queues are first-in-first-out.
+
+- Put and get operations are fairly quick--less than 100 `$\mu$`s of processing
+time plus any network latency-so it can comfortably handle operations at
+hundreds of Hz. But if you try to have several read and write clients running
+at 1 kHz or more, you may overload the queue.
+
+- The queue is backed by an in-memory SQLite database. If your message volumes
+get larger than your RAM, you may reach an out-of-memory condition.
+
+
+# API Reference
+
+
+TODO:

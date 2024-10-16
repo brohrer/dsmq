@@ -4,7 +4,8 @@ import sqlite3
 from threading import Thread
 import time
 
-import config
+HOST = "127.0.0.1"
+PORT = 12345
 
 
 def main():
@@ -25,7 +26,7 @@ def main():
         # shut down properly.
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        s.bind((config.HOST, config.PORT))
+        s.bind((HOST, PORT))
         s.listen()
 
         while True:
@@ -62,7 +63,6 @@ def handle_socket(socket_conn):
         timestamp = time.time()
 
         if msg["action"] == "put":
-
             msg["timestamp"] = timestamp
             cursor.execute(
                 """
