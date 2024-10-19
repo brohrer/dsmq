@@ -120,15 +120,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 import json
 msg = json.dumps({
     "action": "put",
-    "topic": "queue-name",
-    "message": "message-content"
+    "topic": <queue-name>,
+    "message": <message-content>
 })
 s.sendall(bytes(msg, "utf-8"))
 ```
 
 - `s`, the socket connection to the server
-- `queue-name` (str), a name for the queue where the message will be added
-- `message-content` (str), whatever message content you want
+- `<queue-name>` (str), a name for the queue where the message will be added
+- `<message-content>` (str), whatever message content you want
 
 Place `message-content` into the queue named `queue-name`.
 If the queue doesn't exist yet, create it.
@@ -136,12 +136,12 @@ If the queue doesn't exist yet, create it.
 ### Get a message from a queue
 
 ```python
-request_msg = json.dumps({"action": "get", "topic": "queue-name"})
+request_msg = json.dumps({"action": "get", "topic": <queue-name>})
 s.sendall(bytes(request_msg, "utf-8"))
 data = s.recv(1024)
 msg_str = data.decode("utf-8")
 ```
 
-Get the oldest eligible message from the queue named `queue-name`.
+Get the oldest eligible message from the queue named `<queue-name>`.
 The client is only elgibile to receive messages added after it
 connected to the server.
