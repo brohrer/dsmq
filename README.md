@@ -80,7 +80,7 @@ the queue before it started.
 - A client will get the oldest message available on a requested topic.
 Queues are first-in-first-out.
 
-- Put and get operations are fairly quick--less than 100 $`\mu`$ s of processing
+- Put and get operations are fairly quick--less than 100 $`\mu`$s of processing
 time plus any network latency-so it can comfortably handle operations at
 hundreds of Hz. But if you try to have several read and write clients running
 at 1 kHz or more, you may overload the queue.
