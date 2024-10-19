@@ -76,8 +76,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 - Many clients can read messages of the same topic. It is a one-to-many
 pulication model.
 
-- A get client will not be able to read any of the messages that were put into
-the queue before it started.
+- A client will not be able to read any of the messages that were put into
+a queue before it connected.
 
 - A client will get the oldest message available on a requested topic.
 Queues are first-in-first-out.
