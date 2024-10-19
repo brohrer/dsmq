@@ -7,7 +7,7 @@ import time
 import config
 
 
-def main():
+def run(host="127.0.0.1", port=30008):
     sqlite_conn = sqlite3.connect("file:mem1?mode=memory&cache=shared")
     cursor = sqlite_conn.cursor()
 
@@ -25,7 +25,7 @@ def main():
         # shut down properly.
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        s.bind((config.HOST, config.PORT))
+        s.bind((host, port))
         s.listen()
 
         while True:
@@ -115,4 +115,4 @@ AND timestamp = a.min_time
 
 
 if __name__ == "__main__":
-    main()
+    run()

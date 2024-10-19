@@ -2,8 +2,10 @@
 
 ## What it does
 
-TODO:
-dsmq is a central location
+Part mail room, part bulletin board, dsmq is a central location for sharing messages
+between processes, even when they are running on computers scattered around the world.
+
+Its defining characteristic is its bare-bones simplicity.
 
 ## How to use it
 
@@ -19,7 +21,7 @@ As in `src/dsmq/example_server.py`
 ```python
 from dsmq import dsmq
 
-dsmq.serve(host="127.0.0.1", port=12345)
+dsmq.run(host="127.0.0.1", port=12345)
 ```
 
 ### Add a message to a queue
@@ -81,15 +83,65 @@ the queue before it started.
 Queues are first-in-first-out.
 
 - Put and get operations are fairly quick--less than 100 $`\mu`$s of processing
-time plus any network latency-so it can comfortably handle operations at
-hundreds of Hz. But if you try to have several read and write clients running
+time plus any network latency--so it can comfortably handle operations at
+hundreds of Hz. But if you try to have several clients reading and writing
 at 1 kHz or more, you may overload the queue.
 
 - The queue is backed by an in-memory SQLite database. If your message volumes
 get larger than your RAM, you may reach an out-of-memory condition.
 
 
-# API Reference
+# API Reference and Cookbook
+[[source](https://github.com/brohrer/dsmq/blob/main/src/dsmq/dsmq.py)]
 
+### Start a server
 
-TODO:
+```python
+run(host="127.0.0.1", port=30008)
+```
+
+Kicks off the mesage queue server. This process will be the central exchange
+for all incoming and outgoing messages.
+- `host` (str), IP address on which the server will be visible and
+- `port` (int), port. These will be used by all clients
+
+### Open a connection from a client
+
+```python
+import socket
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((host, port ))
+```
+
+### Add a message to a queue
+
+```python
+import json
+msg = json.dumps({
+    "action": "put",
+    "topic": "queue-name",
+    "message": "message-content"
+})
+s.sendall(bytes(msg, "utf-8"))
+```
+
+- `s`, the socket connection to the server
+- `queue-name` (str), a name for the queue where the message will be added
+- `message-content` (str), whatever message content you want
+
+Place `message-content` into the queue named `queue-name`.
+If the queue doesn't exist yet, create it.
+
+### Get a message from a queue
+
+```python
+request_msg = json.dumps({"action": "get", "topic": "queue-name"})
+s.sendall(bytes(request_msg, "utf-8"))
+data = s.recv(1024)
+msg_str = data.decode("utf-8")
+```
+
+Get the oldest eligible message from the queue named `queue-name`.
+The client is only elgibile to receive messages added after it
+connected to the server.
