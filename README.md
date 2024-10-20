@@ -64,7 +64,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 ### Demo
 
 1. Open 3 separate terminal windows.
-1. In the first, run `src/dsmq/example_server.py`.
+1. In the first, run `src/dsmq/dsmq.py`.
 1. In the second, run `src/dsmq/example_put_client.py`.
 1. In the third, run `src/dsmq/example_get_client.py`.
 
@@ -103,7 +103,8 @@ run(host="127.0.0.1", port=30008)
 Kicks off the mesage queue server. This process will be the central exchange
 for all incoming and outgoing messages.
 - `host` (str), IP address on which the server will be visible and
-- `port` (int), port. These will be used by all clients
+- `port` (int), port. These will be used by all clients.
+Non-privileged ports are numbered 1024 and higher.
 
 ### Open a connection from a client
 

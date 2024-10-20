@@ -4,8 +4,13 @@ version = "0.1.0"
 description = "A dead simple missage queue"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "dsmq",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+dsmq = { workspace = true }

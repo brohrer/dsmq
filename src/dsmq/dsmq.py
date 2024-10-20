@@ -1,10 +1,12 @@
 import json
 import socket
 import sqlite3
+import sys
 from threading import Thread
 import time
 
-import config
+N_RETRIES = 5
+FIRST_RETRY = 0.01  # seconds
 
 
 def run(host="127.0.0.1", port=30008):
@@ -15,9 +17,6 @@ def run(host="127.0.0.1", port=30008):
         CREATE TABLE IF NOT EXISTS messages (timestamp DOUBLE, topic TEXT, message TEXT)
     """)
 
-    print("Server started!")
-    print("Waiting for clients...")
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         # Setting this socket option to re-use the address,
         # even if it's already in use.
@@ -27,6 +26,10 @@ def run(host="127.0.0.1", port=30008):
 
         s.bind((host, port))
         s.listen()
+
+        print()
+        print(f"Server started at {host} on port {port}.")
+        print("Waiting for clients...")
 
         while True:
             socket_conn, addr = s.accept()
@@ -51,7 +54,7 @@ def handle_socket(socket_conn):
 
         msg_str = data.decode("utf-8")
         try:
-            print(msg_str)
+            # print("dsmq received ", msg_str)
             msg = json.loads(msg_str)
         except json.decoder.JSONDecodeError:
             print("Message must be json-friendly")
@@ -63,14 +66,24 @@ def handle_socket(socket_conn):
 
         if msg["action"] == "put":
             msg["timestamp"] = timestamp
-            cursor.execute(
-                """
+
+            # This block allows for multiple retries if the database
+            # is busy.
+            for i_retry in range(N_RETRIES):
+                try:
+                    cursor.execute(
+                        """
 INSERT INTO messages (timestamp, topic, message)
 VALUES (:timestamp, :topic, :message)
-                """,
-                (msg),
-            )
-            sqlite_conn.commit()
+                        """,
+                        (msg),
+                    )
+                    sqlite_conn.commit()
+                except sqlite3.OperationalError:
+                    wait_time = FIRST_RETRY * 2**i_retry
+                    time.sleep(wait_time)
+                    continue
+                break
 
         elif msg["action"] == "get":
             try:
@@ -80,8 +93,12 @@ VALUES (:timestamp, :topic, :message)
                 last_read_time = last_read[topic]
             msg["last_read_time"] = last_read_time
 
-            cursor.execute(
-                """
+            # This block allows for multiple retries if the database
+            # is busy.
+            for i_retry in range(N_RETRIES):
+                try:
+                    cursor.execute(
+                        """
 SELECT message,
 timestamp
 FROM messages,
@@ -93,9 +110,14 @@ WHERE topic = :topic
 ) a
 WHERE topic = :topic
 AND timestamp = a.min_time
-                """,
-                msg,
-            )
+                        """,
+                        msg,
+                    )
+                except sqlite3.OperationalError:
+                    wait_time = FIRST_RETRY * 2**i_retry
+                    time.sleep(wait_time)
+                    continue
+                break
 
             try:
                 result = cursor.fetchall()[0]
@@ -115,4 +137,24 @@ AND timestamp = a.min_time
 
 
 if __name__ == "__main__":
-    run()
+    if len(sys.argv) == 3:
+        host = sys.argv[1]
+        port = int(sys.argv[2])
+        run(host=host, port=port)
+    elif len(sys.argv) == 2:
+        host = sys.argv[1]
+        run(host=host)
+    elif len(sys.argv) == 1:
+        run()
+    else:
+        print(
+            """
+Try one of these:
+$ python3 dsmq.py
+
+$ python3 dsmq.py 127.0.0.1
+
+$ python3 dsmq.py 127.0.0.1 25853
+
+            """
+        )
