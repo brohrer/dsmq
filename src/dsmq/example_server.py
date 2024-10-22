@@ -1,3 +1,3 @@
-from dsmq import dsmq
+import dsmq
 
-dsmq.run(host="127.0.0.1", port=12345)
+dsmq.run(host="127.0.0.1", port=30008)

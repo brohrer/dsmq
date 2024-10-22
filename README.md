@@ -68,6 +68,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 1. In the second, run `src/dsmq/example_put_client.py`.
 1. In the third, run `src/dsmq/example_get_client.py`.
 
+Alternative, if you're on Linux just run `src/dsmq/demo_linux.py`.
 
 ## How it works
 
