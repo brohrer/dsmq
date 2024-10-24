@@ -21,7 +21,7 @@ As in `src/dsmq/example_server.py`
 ```python
 from dsmq import dsmq
 
-dsmq.run(host="127.0.0.1", port=12345)
+dsmq.start_server(host="127.0.0.1", port=30008)
 ```
 
 ### Add a message to a queue
@@ -29,14 +29,12 @@ dsmq.run(host="127.0.0.1", port=12345)
 As in `src/dsmq/example_put_client.py`
 
 ```python
-import json
-import socket
+from dsmq import dsmq
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect(("127.0.0.1", 12345))
-    message_content = {"action": "put", "topic": "greetings", "message": "Hello!"}
-    msg = json.dumps(message_content)
-    s.sendall(bytes(msg, "utf-8"))
+mq = dsmq.connect_to_server(host="127.0.0.1", port=12345)
+topic = "greetings"
+msg = "hello world!"
+mq.put(topic, msg)
 ```
 
 ### Read a message from a queue
@@ -44,21 +42,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 As in `src/dsmq/example_get_client.py`
 
 ```python
-import json
-import socket
+from dsmq import dsmq
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect(("127.0.0.1", 12345))
-
-    for i in range(n_iter):
-        request_message_content = {"action": "get", "topic": "greetings"}
-        request_msg = json.dumps(request_message_content)
-        s.sendall(bytes(reequest_msg, "utf-8"))
-
-        reply_msg = s.recv(1024)
-        if not reply_msg:
-            raise RuntimeError("Connection terminated by server")
-        reply_msg_content = reply_msg.decode("utf-8")
+mq = dsmq.connect_to_server(host="127.0.0.1", port=12345)
+topic = "greetings"
+msg = mq.get(topic)
 ```
 
 ### Demo
@@ -92,14 +80,10 @@ at 1 kHz or more, you may overload the queue.
 get larger than your RAM, you may reach an out-of-memory condition.
 
 
-# API Reference and Cookbook
+# API Reference
 [[source](https://github.com/brohrer/dsmq/blob/main/src/dsmq/dsmq.py)]
 
-### Start a server
-
-```python
-run(host="127.0.0.1", port=30008)
-```
+### `start_server(host="127.0.0.1", port=30008)`
 
 Kicks off the mesage queue server. This process will be the central exchange
 for all incoming and outgoing messages.
@@ -107,43 +91,29 @@ for all incoming and outgoing messages.
 - `port` (int), port. These will be used by all clients.
 Non-privileged ports are numbered 1024 and higher.
 
-### Open a connection from a client
+### `connect_to_server(host="127.0.0.1", port=30008)`
 
-```python
-import socket
+Connects to an existing message queue server.
+- `host` (str), IP address of the *server*.
+- `port` (int), port on which the server is listening.
+- returns a `DSMQClientSideConnection` object.
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((host, port ))
-```
+## `DSMQClientSideConnection` class
 
-### Add a message to a queue
+This is a convenience wrapper, to make the `get()` and `put()` functions
+easy to write and remember
 
-```python
-import json
-msg = json.dumps({
-    "action": "put",
-    "topic": <queue-name>,
-    "message": <message-content>
-})
-s.sendall(bytes(msg, "utf-8"))
-```
+### `put(topic, msg)`
 
-- `s`, the socket connection to the server
-- `<queue-name>` (str), a name for the queue where the message will be added
-- `<message-content>` (str), whatever message content you want
+Puts `msg` into the queue named `topic`. If the queue doesn't exist yet, it is created.
+- msg (str), the content of the message.
+- topic (str), name of the message queue in which to put this message.
 
-Place `message-content` into the queue named `queue-name`.
-If the queue doesn't exist yet, create it.
+### `get(topic)`
 
-### Get a message from a queue
-
-```python
-request_msg = json.dumps({"action": "get", "topic": <queue-name>})
-s.sendall(bytes(request_msg, "utf-8"))
-data = s.recv(1024)
-msg_str = data.decode("utf-8")
-```
-
-Get the oldest eligible message from the queue named `<queue-name>`.
-The client is only elgibile to receive messages added after it
+Get the oldest eligible message from the queue named `topic`.
+The client is only elgibile to receive messages that were added after it
 connected to the server.
+- `topic` (str)
+- returns str, the content of the message. If there was no eligble message,
+returns "".

@@ -5,11 +5,19 @@ import sys
 from threading import Thread
 import time
 
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 30008
+
 N_RETRIES = 5
 FIRST_RETRY = 0.01  # seconds
 
 
-def run(host="127.0.0.1", port=30008):
+def start_server(host=DEFAULT_HOST, port=DEFAULT_PORT):
+    """
+    For best results, start this running in its own process and walk away.
+
+
+    """
     sqlite_conn = sqlite3.connect("file:mem1?mode=memory&cache=shared")
     cursor = sqlite_conn.cursor()
 
@@ -34,12 +42,37 @@ def run(host="127.0.0.1", port=30008):
         while True:
             socket_conn, addr = s.accept()
             print(f"Connected by {addr}")
-            Thread(target=handle_socket, args=(socket_conn,)).start()
+            Thread(target=_handle_client_connection, args=(socket_conn,)).start()
 
     sqlite_conn.close()
 
 
-def handle_socket(socket_conn):
+def connect_to_server(host=DEFAULT_HOST, port=DEFAULT_PORT):
+    return DSMQClientSideConnection(host, port)
+
+
+class DSMQClientSideConnection:
+    def __init__(self, host, port):
+        self.dsmq_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.dsmq_conn.connect((host, port))
+
+    def get(self, topic):
+        msg = json.dumps({"action": "get", "topic": topic})
+        self.dsmq_conn.sendall(bytes(msg, "utf-8"))
+
+        data = self.dsmq_conn.recv(1024)
+        if not data:
+            raise RuntimeError("Connection terminated by server")
+        msg_str = data.decode("utf-8")
+        msg = json.loads(msg_str)
+        return msg
+
+    def put(self, topic, msg):
+        msg = json.dumps({"action": "put", "topic": topic, "message": msg})
+        self.dsmq_conn.sendall(bytes(msg, "utf-8"))
+
+
+def _handle_client_connection(socket_conn):
     sqlite_conn = sqlite3.connect("file:mem1?mode=memory&cache=shared")
     cursor = sqlite_conn.cursor()
 
@@ -140,12 +173,12 @@ if __name__ == "__main__":
     if len(sys.argv) == 3:
         host = sys.argv[1]
         port = int(sys.argv[2])
-        run(host=host, port=port)
+        start_server(host=host, port=port)
     elif len(sys.argv) == 2:
         host = sys.argv[1]
-        run(host=host)
+        start_server(host=host)
     elif len(sys.argv) == 1:
-        run()
+        start_server()
     else:
         print(
             """

@@ -11,7 +11,7 @@ PORT = 25252
 
 
 def test_server_with_clients():
-    p_server = mp.Process(target=dsmq.run, args=(HOST, PORT))
+    p_server = mp.Process(target=dsmq.start_server, args=(HOST, PORT))
     p_server.start()
 
     p_putter = mp.Process(target=example_put_client.run, args=(HOST, PORT, 20))
