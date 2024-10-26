@@ -5,7 +5,7 @@
 Part mail room, part bulletin board, dsmq is a central location for sharing messages
 between processes, even when they are running on computers scattered around the world.
 
-Its defining characteristic is its bare-bones simplicity.
+Its defining characteristic is bare-bones simplicity.
 
 ## How to use it
 
@@ -24,14 +24,18 @@ from dsmq import dsmq
 dsmq.start_server(host="127.0.0.1", port=30008)
 ```
 
+### Connect a client to a dsmq server
+
+As in `src/dsmq/example_put_client.py`
+
+```python
+mq = dsmq.connect_to_server(host="127.0.0.1", port=12345)
+```
 ### Add a message to a queue
 
 As in `src/dsmq/example_put_client.py`
 
 ```python
-from dsmq import dsmq
-
-mq = dsmq.connect_to_server(host="127.0.0.1", port=12345)
 topic = "greetings"
 msg = "hello world!"
 mq.put(topic, msg)
@@ -42,9 +46,6 @@ mq.put(topic, msg)
 As in `src/dsmq/example_get_client.py`
 
 ```python
-from dsmq import dsmq
-
-mq = dsmq.connect_to_server(host="127.0.0.1", port=12345)
 topic = "greetings"
 msg = mq.get(topic)
 ```
@@ -56,14 +57,14 @@ msg = mq.get(topic)
 1. In the second, run `src/dsmq/example_put_client.py`.
 1. In the third, run `src/dsmq/example_get_client.py`.
 
-Alternative, if you're on Linux just run `src/dsmq/demo_linux.py`.
+Alternatively, if you're on Linux just run `src/dsmq/demo_linux.py`.
 
 ## How it works
 
 ### Expected behavior and limitations
 
 - Many clients can read messages of the same topic. It is a one-to-many
-pulication model.
+publication model.
 
 - A client will not be able to read any of the messages that were put into
 a queue before it connected.
@@ -72,12 +73,12 @@ a queue before it connected.
 Queues are first-in-first-out.
 
 - Put and get operations are fairly quick--less than 100 $`\mu`$s of processing
-time plus any network latency--so it can comfortably handle operations at
-hundreds of Hz. But if you try to have several clients reading and writing
+time plus any network latency--so it can comfortably handle requests at rates of
+hundreds of times per second. But if you have several clients reading and writing
 at 1 kHz or more, you may overload the queue.
 
 - The queue is backed by an in-memory SQLite database. If your message volumes
-get larger than your RAM, you may reach an out-of-memory condition.
+get larger than your RAM, you will reach an out-of-memory condition.
 
 
 # API Reference
@@ -101,7 +102,7 @@ Connects to an existing message queue server.
 ## `DSMQClientSideConnection` class
 
 This is a convenience wrapper, to make the `get()` and `put()` functions
-easy to write and remember
+easy to write and remember.
 
 ### `put(topic, msg)`
 
@@ -115,5 +116,6 @@ Get the oldest eligible message from the queue named `topic`.
 The client is only elgibile to receive messages that were added after it
 connected to the server.
 - `topic` (str)
-- returns str, the content of the message. If there was no eligble message,
+- returns str, the content of the message. If there was no eligble message
+in the topic, or the topic doesn't yet exist,
 returns "".
