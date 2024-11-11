@@ -50,6 +50,24 @@ topic = "greetings"
 msg = mq.get(topic)
 ```
 
+### Spin up and shut down a dsmq in its own process
+
+A dsmq server doesn't come with a built-in way to shut itself down. 
+It can be helpful to have it running in a separate process that can be
+managed
+
+```python
+import multiprocessing as mp
+
+p_mq = mp.Process(target=dsmq.start_server, args=(config.MQ_HOST, config.MQ_PORT))
+p_mq.start()
+
+p_mq.join()
+# or 
+p_mq.kill()
+p_mq.close()
+```
+
 ### Demo
 
 1. Open 3 separate terminal windows.

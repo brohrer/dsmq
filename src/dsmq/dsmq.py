@@ -65,7 +65,10 @@ class DSMQClientSideConnection:
             raise RuntimeError("Connection terminated by server")
         msg_str = data.decode("utf-8")
         msg = json.loads(msg_str)
-        return msg
+        try:
+            return msg["message"]
+        except KeyError:
+            return ""
 
     def put(self, topic, msg):
         msg = json.dumps({"action": "put", "topic": topic, "message": msg})

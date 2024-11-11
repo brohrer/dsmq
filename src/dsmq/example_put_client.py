@@ -1,5 +1,3 @@
-import json
-import socket
 import time
 import dsmq
 
