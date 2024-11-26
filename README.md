@@ -90,6 +90,8 @@ a queue before it connected.
 - A client will get the oldest message available on a requested topic.
 Queues are first-in-first-out.
 
+- Messages older than 600 seconds will be deleted from the queue.
+
 - Put and get operations are fairly quick--less than 100 $`\mu`$s of processing
 time plus any network latency--so it can comfortably handle requests at rates of
 hundreds of times per second. But if you have several clients reading and writing
@@ -120,7 +122,7 @@ Connects to an existing message queue server.
 ## `DSMQClientSideConnection` class
 
 This is a convenience wrapper, to make the `get()` and `put()` functions
-easy to write and remember.
+easy to write and remember. It's under the hood only, not meant to be called directly.
 
 ### `put(topic, msg)`
 
@@ -136,4 +138,4 @@ connected to the server.
 - `topic` (str)
 - returns str, the content of the message. If there was no eligble message
 in the topic, or the topic doesn't yet exist,
-returns "".
+returns `""`.
