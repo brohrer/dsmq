@@ -19,9 +19,9 @@ pip install dsmq
 As in `src/dsmq/example_server.py`
 
 ```python
-from dsmq import dsmq
+from dsmq.server import serve
 
-dsmq.start_server(host="127.0.0.1", port=30008)
+serve(host="127.0.0.1", port=30008)
 ```
 
 ### Connect a client to a dsmq server
@@ -29,7 +29,9 @@ dsmq.start_server(host="127.0.0.1", port=30008)
 As in `src/dsmq/example_put_client.py`
 
 ```python
-mq = dsmq.connect_to_server(host="127.0.0.1", port=12345)
+from dsmq.client import connect
+
+mq = connect(host="127.0.0.1", port=12345)
 ```
 ### Add a message to a queue
 
@@ -59,7 +61,7 @@ managed
 ```python
 import multiprocessing as mp
 
-p_mq = mp.Process(target=dsmq.start_server, args=(config.MQ_HOST, config.MQ_PORT))
+p_mq = mp.Process(target=serve, args=(config.MQ_HOST, config.MQ_PORT))
 p_mq.start()
 
 p_mq.join()
@@ -71,7 +73,7 @@ p_mq.close()
 ### Demo
 
 1. Open 3 separate terminal windows.
-1. In the first, run `src/dsmq/dsmq.py`.
+1. In the first, run `src/dsmq/server.py` as a script.
 1. In the second, run `src/dsmq/example_put_client.py`.
 1. In the third, run `src/dsmq/example_get_client.py`.
 
@@ -102,9 +104,9 @@ get larger than your RAM, you will reach an out-of-memory condition.
 
 
 # API Reference
-[[source](https://github.com/brohrer/dsmq/blob/main/src/dsmq/dsmq.py)]
+[[source](https://github.com/brohrer/dsmq/blob/main/src/dsmq/serve.py)]
 
-### `start_server(host="127.0.0.1", port=30008)`
+### `serve(host="127.0.0.1", port=30008)`
 
 Kicks off the mesage queue server. This process will be the central exchange
 for all incoming and outgoing messages.
@@ -112,9 +114,9 @@ for all incoming and outgoing messages.
 - `port` (int), port. These will be used by all clients.
 Non-privileged ports are numbered 1024 and higher.
 
-### `connect_to_server(host="127.0.0.1", port=30008)`
+### `connect(host="127.0.0.1", port=30008)`
 
-Connects to an existing message queue server.
+Connects a client to an existing message queue server.
 - `host` (str), IP address of the *server*.
 - `port` (int), port on which the server is listening.
 - returns a `DSMQClientSideConnection` object.
