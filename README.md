@@ -77,7 +77,7 @@ p_mq.close()
 1. In the second, run `src/dsmq/example_put_client.py`.
 1. In the third, run `src/dsmq/example_get_client.py`.
 
-Alternatively, if you're on Linux just run `src/dsmq/demo_linux.py`.
+Alternatively, you can run them all at once with `src/dsmq/demo.py`.
 
 ## How it works
 
@@ -141,3 +141,30 @@ connected to the server.
 - returns str, the content of the message. If there was no eligble message
 in the topic, or the topic doesn't yet exist,
 returns `""`.
+
+### `get_wait(topic)`
+
+A variant of `get()` that retries a few times until it gets
+a non-empty message. Adjust internal values `_n_tries` and `_initial_retry`
+to change how persistent it will be.
+
+- `topic` (str)
+- returns str, the content of the message. If there was no eligble message
+in the topic after the allotted number of tries,
+or the topic doesn't yet exist,
+returns `""`.
+
+### `shutdown_server()`
+
+Gracefully shut down the server, through the client connection.
+
+### `close()`
+
+Gracefully shut down the client connection.
+
+# Testing
+
+Run all the tests in `src/dsmq/tests/` with pytest, for example
+```
+uv run pytest
+```

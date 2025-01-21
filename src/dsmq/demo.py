@@ -1,10 +1,7 @@
-# Heads up: This script only works on Linux because of use of "fork" method.
 import multiprocessing as mp
 from dsmq.server import serve
 import dsmq.example_get_client
 import dsmq.example_put_client
-
-mp.set_start_method("fork")
 
 HOST = "127.0.0.1"
 PORT = 25252
