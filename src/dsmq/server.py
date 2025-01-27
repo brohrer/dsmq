@@ -50,8 +50,9 @@ CREATE TABLE IF NOT EXISTS messages (timestamp DOUBLE, topic TEXT, message TEXT)
     # or send it to me at brohrer@gmail.com,
     global dsmq_server
 
-    dsmq_server = ws_serve(request_handler, host, port)
-    dsmq_server.serve_forever()
+    # dsmq_server = ws_serve(request_handler, host, port)
+    with ws_serve(request_handler, host, port) as dsmq_server:
+        dsmq_server.serve_forever()
     print()
     print(f"Server started at {host} on port {port}.")
     print("Waiting for clients...")
@@ -144,7 +145,6 @@ AND timestamp = a.min_time
 
             def shutdown_gracefully(server_to_shutdown):
                 server_to_shutdown.shutdown()
-                time.sleep(_pause)
 
                 filenames = os.listdir()
                 for filename in filenames:
@@ -155,7 +155,7 @@ AND timestamp = a.min_time
                             pass
 
             Thread(target=shutdown_gracefully, args=(dsmq_server,)).start()
-            sqlite_conn.close()
+            break
         else:
             print("Action must either be 'put', 'get', or 'shudown'")
 

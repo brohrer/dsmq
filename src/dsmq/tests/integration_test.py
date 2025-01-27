@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import time
+from websockets.exceptions import ConnectionClosed
 from dsmq.server import serve
 from dsmq.client import connect
 
@@ -12,7 +13,7 @@ port = 30303
 _short_pause = 0.001
 _pause = 0.01
 _long_pause = 0.1
-_very_long_pause = 0.1
+_very_long_pause = 2.0
 
 
 def test_client_server():
@@ -38,9 +39,13 @@ def test_client_server():
     mq.shutdown_server()
     mq.close()
 
-    # It takes a sec to shut down the server
-    time.sleep(_long_pause)
-    assert not p_server.is_alive()
+    closed = False
+    try:
+        mq = connect(host, port)
+    except ConnectionRefusedError as e:
+        print(e)
+        closed = True
+    assert closed
 
 
 def test_write_one_read_one():
