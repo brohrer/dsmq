@@ -19,7 +19,7 @@ _db_name = "file::memory:?cache=shared"
 dsmq_server = None
 
 
-def serve(host=_default_host, port=_default_port):
+def serve(host=_default_host, port=_default_port, verbose=False):
     """
     For best results, start this running in its own process and walk away.
     """
@@ -53,9 +53,10 @@ CREATE TABLE IF NOT EXISTS messages (timestamp DOUBLE, topic TEXT, message TEXT)
     # dsmq_server = ws_serve(request_handler, host, port)
     with ws_serve(request_handler, host, port) as dsmq_server:
         dsmq_server.serve_forever()
-    print()
-    print(f"Server started at {host} on port {port}.")
-    print("Waiting for clients...")
+    if verbose:
+        print()
+        print(f"Server started at {host} on port {port}.")
+        print("Waiting for clients...")
 
     sqlite_conn.close()
 
@@ -141,7 +142,6 @@ AND timestamp = a.min_time
         elif msg["action"] == "shutdown":
             # Run this from a separate thread to prevent deadlock
             global dsmq_server
-            print("Shutting down the dsmq server.")
 
             def shutdown_gracefully(server_to_shutdown):
                 server_to_shutdown.shutdown()
@@ -157,7 +157,9 @@ AND timestamp = a.min_time
             Thread(target=shutdown_gracefully, args=(dsmq_server,)).start()
             break
         else:
-            print("Action must either be 'put', 'get', or 'shudown'")
+            raise RuntimeWarning(
+                "dsmq client action must either be 'put', 'get', or 'shutdown'"
+            )
 
         # Periodically clean out messages from the queue that are
         # past their sell buy date.
