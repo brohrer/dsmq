@@ -9,14 +9,16 @@ _n_retries = 10
 _initial_retry = 0.01  # seconds
 
 
-def connect(host=_default_host, port=_default_port):
-    return DSMQClientSideConnection(host, port)
+def connect(host=_default_host, port=_default_port, verbose=False):
+    return DSMQClientSideConnection(host, port, verbose=verbose)
 
 
 class DSMQClientSideConnection:
-    def __init__(self, host, port):
+    def __init__(self, host, port, verbose=False):
         self.uri = f"ws://{host}:{port}"
-        print(f"Connecting to dsmq server at {self.uri}")
+        self.verbose = verbose
+        if self.verbose:
+            print(f"Connecting to dsmq server at {self.uri}")
         for i_retry in range(_n_retries):
             try:
                 self.websocket = ws_connect(self.uri)
@@ -26,7 +28,8 @@ class DSMQClientSideConnection:
                 # Exponential backoff
                 # Wait twice as long each time before trying again.
                 time.sleep(_initial_retry * 2**i_retry)
-                print("    ...trying again")
+                if self.verbose:
+                    print("    ...trying again")
 
         if self.websocket is None:
             raise ConnectionRefusedError("Could not connect to dsmq server.")
