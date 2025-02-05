@@ -5,6 +5,7 @@ import sys
 from threading import Thread
 import time
 from websockets.sync.server import serve as ws_serve
+from websockets.exceptions import ConnectionClosedError
 
 _default_host = "127.0.0.1"
 _default_port = 30008
@@ -138,7 +139,10 @@ AND timestamp = a.min_time
                 # Handle the case where no results are returned
                 message = ""
 
-            websocket.send(json.dumps({"message": message}))
+            try:
+                websocket.send(json.dumps({"message": message}))
+            except ConnectionClosedError:
+                pass
         elif msg["action"] == "shutdown":
             # Run this from a separate thread to prevent deadlock
             global dsmq_server

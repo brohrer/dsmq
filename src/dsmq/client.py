@@ -1,6 +1,7 @@
 import json
 import time
 from websockets.sync.client import connect as ws_connect
+from websockets.exceptions import ConnectionClosedError
 
 _default_host = "127.0.0.1"
 _default_port = 30008
@@ -39,7 +40,11 @@ class DSMQClientSideConnection:
     def get(self, topic):
         msg = {"action": "get", "topic": topic}
         self.websocket.send(json.dumps(msg))
-        msg_text = self.websocket.recv()
+        try:
+            msg_text = self.websocket.recv()
+        except ConnectionClosedError:
+            self.close()
+
         msg = json.loads(msg_text)
         return msg["message"]
 
