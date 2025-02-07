@@ -5,7 +5,7 @@ import sys
 from threading import Thread
 import time
 from websockets.sync.server import serve as ws_serve
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 _default_host = "127.0.0.1"
 _default_port = 30008
@@ -70,114 +70,120 @@ def request_handler(websocket):
     last_read_times = {}
     time_of_last_purge = time.time()
 
-    for msg_text in websocket:
-        msg = json.loads(msg_text)
-        topic = msg["topic"]
-        timestamp = time.time()
+    try:
+        for msg_text in websocket:
+            msg = json.loads(msg_text)
+            topic = msg["topic"]
+            timestamp = time.time()
 
-        if msg["action"] == "put":
-            msg["timestamp"] = timestamp
+            if msg["action"] == "put":
+                msg["timestamp"] = timestamp
 
-            # This block allows for multiple retries if the database
-            # is busy.
-            for i_retry in range(_n_retries):
+                # This block allows for multiple retries if the database
+                # is busy.
+                for i_retry in range(_n_retries):
+                    try:
+                        cursor.execute(
+                            """
+                            INSERT INTO messages (timestamp, topic, message)
+                            VALUES (:timestamp, :topic, :message)
+                            """,
+                            (msg),
+                        )
+                        sqlite_conn.commit()
+                    except sqlite3.OperationalError:
+                        wait_time = _first_retry * 2**i_retry
+                        time.sleep(wait_time)
+                        continue
+                    break
+
+            elif msg["action"] == "get":
+                try:
+                    last_read_time = last_read_times[topic]
+                except KeyError:
+                    last_read_times[topic] = client_creation_time
+                    last_read_time = last_read_times[topic]
+                msg["last_read_time"] = last_read_time
+
+                # This block allows for multiple retries if the database
+                # is busy.
+                for i_retry in range(_n_retries):
+                    try:
+                        cursor.execute(
+                            """
+                            SELECT message,
+                            timestamp
+                            FROM messages,
+                            (
+                            SELECT MIN(timestamp) AS min_time
+                            FROM messages
+                            WHERE topic = :topic
+                            AND timestamp > :last_read_time
+                            ) a
+                            WHERE topic = :topic
+                            AND timestamp = a.min_time
+                            """,
+                            msg,
+                        )
+                    except sqlite3.OperationalError:
+                        wait_time = _first_retry * 2**i_retry
+                        time.sleep(wait_time)
+                        continue
+                    break
+
+                try:
+                    result = cursor.fetchall()[0]
+                    message = result[0]
+                    timestamp = result[1]
+                    last_read_times[topic] = timestamp
+                except IndexError:
+                    # Handle the case where no results are returned
+                    message = ""
+
+                websocket.send(json.dumps({"message": message}))
+            elif msg["action"] == "shutdown":
+                # Run this from a separate thread to prevent deadlock
+                global dsmq_server
+
+                def shutdown_gracefully(server_to_shutdown):
+                    server_to_shutdown.shutdown()
+
+                    filenames = os.listdir()
+                    for filename in filenames:
+                        if filename[: len(_db_name)] == _db_name:
+                            try:
+                                os.remove(filename)
+                            except FileNotFoundError:
+                                pass
+
+                Thread(target=shutdown_gracefully, args=(dsmq_server,)).start()
+                break
+            else:
+                raise RuntimeWarning(
+                    "dsmq client action must either be 'put', 'get', or 'shutdown'"
+                )
+
+            # Periodically clean out messages from the queue that are
+            # past their sell buy date.
+            # This operation is pretty fast. I clock it at 12 us on my machine.
+            if time.time() - time_of_last_purge > _time_to_live:
                 try:
                     cursor.execute(
                         """
-INSERT INTO messages (timestamp, topic, message)
-VALUES (:timestamp, :topic, :message)
+                        DELETE FROM messages
+                        WHERE timestamp < :time_threshold
                         """,
-                        (msg),
+                        {"time_threshold": time_of_last_purge},
                     )
                     sqlite_conn.commit()
+                    time_of_last_purge = time.time()
                 except sqlite3.OperationalError:
-                    wait_time = _first_retry * 2**i_retry
-                    time.sleep(wait_time)
-                    continue
-                break
-
-        elif msg["action"] == "get":
-            try:
-                last_read_time = last_read_times[topic]
-            except KeyError:
-                last_read_times[topic] = client_creation_time
-                last_read_time = last_read_times[topic]
-            msg["last_read_time"] = last_read_time
-
-            # This block allows for multiple retries if the database
-            # is busy.
-            for i_retry in range(_n_retries):
-                try:
-                    cursor.execute(
-                        """
-SELECT message,
-timestamp
-FROM messages,
-(
-SELECT MIN(timestamp) AS min_time
-FROM messages
-WHERE topic = :topic
-AND timestamp > :last_read_time
-) a
-WHERE topic = :topic
-AND timestamp = a.min_time
-                        """,
-                        msg,
-                    )
-                except sqlite3.OperationalError:
-                    wait_time = _first_retry * 2**i_retry
-                    time.sleep(wait_time)
-                    continue
-                break
-
-            try:
-                result = cursor.fetchall()[0]
-                message = result[0]
-                timestamp = result[1]
-                last_read_times[topic] = timestamp
-            except IndexError:
-                # Handle the case where no results are returned
-                message = ""
-
-            try:
-                websocket.send(json.dumps({"message": message}))
-            except ConnectionClosedError:
-                pass
-        elif msg["action"] == "shutdown":
-            # Run this from a separate thread to prevent deadlock
-            global dsmq_server
-
-            def shutdown_gracefully(server_to_shutdown):
-                server_to_shutdown.shutdown()
-
-                filenames = os.listdir()
-                for filename in filenames:
-                    if filename[: len(_db_name)] == _db_name:
-                        try:
-                            os.remove(filename)
-                        except FileNotFoundError:
-                            pass
-
-            Thread(target=shutdown_gracefully, args=(dsmq_server,)).start()
-            break
-        else:
-            raise RuntimeWarning(
-                "dsmq client action must either be 'put', 'get', or 'shutdown'"
-            )
-
-        # Periodically clean out messages from the queue that are
-        # past their sell buy date.
-        # This operation is pretty fast. I clock it at 12 us on my machine.
-        if time.time() - time_of_last_purge > _time_to_live:
-            cursor.execute(
-                """
-DELETE FROM messages
-WHERE timestamp < :time_threshold
-                """,
-                {"time_threshold": time_of_last_purge},
-            )
-            sqlite_conn.commit()
-            time_of_last_purge = time.time()
+                    # Database may be locked. Try again next time.
+                    pass
+    except (ConnectionClosedError, ConnectionClosedOK):
+        # Something happened on the other end and this handler
+        # is no longer needed.
+        pass
 
     sqlite_conn.close()
 
