@@ -8,6 +8,7 @@ _default_port = 30008
 
 _n_retries = 10
 _initial_retry = 0.01  # seconds
+_shutdown_delay = 0.1  # seconds
 
 
 def connect(host=_default_host, port=_default_port, verbose=False):
@@ -28,7 +29,7 @@ class DSMQClientSideConnection:
                 self.websocket = None
                 # Exponential backoff
                 # Wait twice as long each time before trying again.
-                time.sleep(_initial_retry * 2**i_retry)
+                time.sleep(_initial_retry * 2 ** i_retry)
                 if self.verbose:
                     print("    ...trying again")
 
@@ -44,6 +45,7 @@ class DSMQClientSideConnection:
             msg_text = self.websocket.recv()
         except ConnectionClosedError:
             self.close()
+            return ""
 
         msg = json.loads(msg_text)
         return msg["message"]
@@ -68,6 +70,10 @@ class DSMQClientSideConnection:
     def shutdown_server(self):
         msg_dict = {"action": "shutdown", "topic": ""}
         self.websocket.send(json.dumps(msg_dict))
+        # Give the server time to wind down
+        time.sleep(_shutdown_delay)
 
     def close(self):
         self.websocket.close()
+        # Give the websocket time to wind down
+        time.sleep(_shutdown_delay)

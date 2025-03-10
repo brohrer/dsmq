@@ -168,3 +168,8 @@ Run all the tests in `src/dsmq/tests/` with pytest, for example
 ```
 uv run pytest
 ```
+
+# Performance characterization
+
+Time typical operations on your system with the script at
+`src/dsmq/tests/performance_suite.py`

@@ -1,6 +1,5 @@
 import multiprocessing as mp
 import time
-from websockets.exceptions import ConnectionClosed
 from dsmq.server import serve
 from dsmq.client import connect
 
