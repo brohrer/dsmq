@@ -29,7 +29,7 @@ class DSMQClientSideConnection:
                 self.websocket = None
                 # Exponential backoff
                 # Wait twice as long each time before trying again.
-                time.sleep(_initial_retry * 2 ** i_retry)
+                time.sleep(_initial_retry * 2**i_retry)
                 if self.verbose:
                     print("    ...trying again")
 

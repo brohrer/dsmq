@@ -21,7 +21,7 @@ dsmq_server = None
 def serve(
     host=_default_host,
     port=_default_port,
-    name = "mqdb",
+    name="mqdb",
     verbose=False,
 ):
     """
