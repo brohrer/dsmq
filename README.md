@@ -142,6 +142,16 @@ connected to the server.
 in the topic, or the topic doesn't yet exist,
 returns `""`.
 
+### `get_latest(topic)`
+
+Get the *most recent* eligible message from the queue named `topic`.
+All the messages older than that in the queue become ineligible and never
+get seen by the client.
+- `topic` (str)
+- returns str, the content of the message. If there was no eligble message
+in the topic, or the topic doesn't yet exist,
+returns `""`.
+
 ### `get_wait(topic)`
 
 A variant of `get()` that retries a few times until it gets

@@ -9,10 +9,10 @@ from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 _default_host = "127.0.0.1"
 _default_port = 30008
-_n_retries = 20
-_first_retry = 0.005  # seconds
-_time_between_cleanup = 0.05  # seconds
 _max_queue_length = 10
+_shutdown_pause = 1.0  # seconds
+_time_between_cleanup = 3.0  # seconds
+_time_to_keep = 0.3  # seconds
 
 # Make this global so it's easy to share
 dsmq_server = None
@@ -42,7 +42,11 @@ def serve(
     # and keep long-term latency more predictable.
     # These also make it more susceptible to corruption during shutdown,
     # but since dsmq is meant to be ephemeral, that's not a concern.
+    # See https://www.sqlite.org/pragma.html
+    #
     cursor.execute("PRAGMA journal_mode = OFF")
+    # cursor.execute("PRAGMA journal_mode = MEMORY")
+    # cursor.execute("PRAGMA synchronous = NORMAL")
     cursor.execute("PRAGMA synchronous = OFF")
     cursor.execute("PRAGMA secure_delete = OFF")
     cursor.execute("PRAGMA temp_store = MEMORY")
@@ -56,36 +60,33 @@ CREATE TABLE IF NOT EXISTS messages (timestamp DOUBLE, topic TEXT, message TEXT)
     # and a method of last resort.
     global dsmq_server
 
-    for i_retry in range(_n_retries):
-        try:
+    try:
+        with ws_serve(request_handler, host, port) as dsmq_server:
+            dsmq_server.serve_forever()
+
+    except OSError:
+        # Catch the case where the address is already in use
+        if verbose:
+            print()
+            print(f"Found a dsmq server already running on {host} on port {port}.")
+            print("    Closing it down.")
+
+            def shutdown_gracefully(server_to_shutdown):
+                server_to_shutdown.shutdown()
+
+            Thread(target=shutdown_gracefully, args=(dsmq_server,)).start()
+            time.sleep(_shutdown_pause)
+
             with ws_serve(request_handler, host, port) as dsmq_server:
                 dsmq_server.serve_forever()
 
-            if verbose:
-                print()
-                print(f"Server started at {host} on port {port}.")
-                print("Waiting for clients...")
-
-            break
-
-        except OSError:
-            # Catch the case where the address is already in use
-            if verbose:
-                print()
-                if i_retry < _n_retries - 1:
-                    print(f"Couldn't start dsmq server on {host} on port {port}.")
-                    print(f"    Trying again ({i_retry}) ...")
-                else:
-                    print()
-                    print(f"Failed to start dsmq server on {host} on port {port}.")
-                    print()
-                    raise
-
-            wait_time = _first_retry * 2**i_retry
-            time.sleep(wait_time)
+    if verbose:
+        print()
+        print(f"Server started at {host} on port {port}.")
+        print("Waiting for clients...")
 
     sqlite_conn.close()
-    time.sleep(_time_between_cleanup)
+    time.sleep(_shutdown_pause)
     cleanup_temp_files()
 
 
@@ -121,9 +122,10 @@ def request_handler(websocket):
         for msg_text in websocket:
             msg = json.loads(msg_text)
             topic = msg["topic"]
+            action = msg["action"]
             timestamp = time.time()
 
-            if msg["action"] == "put":
+            if action == "put":
                 msg["timestamp"] = timestamp
 
                 try:
@@ -138,7 +140,7 @@ def request_handler(websocket):
                 except sqlite3.OperationalError:
                     pass
 
-            elif msg["action"] == "get":
+            elif action == "get":
                 try:
                     last_read_time = last_read_times[topic]
                 except KeyError:
@@ -151,15 +153,11 @@ def request_handler(websocket):
                         """
                         SELECT message,
                         timestamp
-                        FROM messages,
-                        (
-                        SELECT MIN(timestamp) AS min_time
                         FROM messages
                         WHERE topic = :topic
                         AND timestamp > :last_read_time
-                        ) a
-                        WHERE topic = :topic
-                        AND timestamp = a.min_time
+                        ORDER BY timestamp ASC
+                        LIMIT 1
                         """,
                         msg,
                     )
@@ -177,25 +175,76 @@ def request_handler(websocket):
 
                 websocket.send(json.dumps({"message": message}))
 
-            elif msg["action"] == "shutdown":
+            elif action == "get_latest":
+                try:
+                    last_read_time = last_read_times[topic]
+                except KeyError:
+                    last_read_times[topic] = client_creation_time
+                    last_read_time = last_read_times[topic]
+                msg["last_read_time"] = last_read_time
+
+                try:
+                    cursor.execute(
+                        """
+                        SELECT message,
+                        timestamp
+                        FROM messages
+                        WHERE topic = :topic
+                        AND timestamp > :last_read_time
+                        ORDER BY timestamp DESC
+                        LIMIT 1;
+                        """,
+                        msg,
+                    )
+                except sqlite3.OperationalError:
+                    pass
+
+                try:
+                    result = cursor.fetchall()[0]
+                    message = result[0]
+                    timestamp = result[1]
+                    last_read_times[topic] = timestamp
+                except IndexError:
+                    # Handle the case where no results are returned
+                    message = ""
+
+                websocket.send(json.dumps({"message": message}))
+
+            elif action == "shutdown":
                 # Run this from a separate thread to prevent deadlock
                 global dsmq_server
 
                 def shutdown_gracefully(server_to_shutdown):
                     server_to_shutdown.shutdown()
-                    # cleanup_temp_files()
 
                 Thread(target=shutdown_gracefully, args=(dsmq_server,)).start()
                 break
             else:
                 raise RuntimeWarning(
-                    "dsmq client action must either be 'put', 'get', or 'shutdown'"
+                    "dsmq client action must either be\n"
+                    + "'put', 'get', 'get_wait', 'get_latest', or 'shutdown'"
                 )
 
             # Periodically clean out messages to keep individual queues at
             # a manageable length and the overall mq small.
             if time.time() - time_of_last_purge > _time_between_cleanup:
+                cutoff_time = time.time() - _time_to_keep
                 try:
+                    cursor.execute(
+                        """
+                        DELETE
+                        FROM messages
+                        WHERE topic = :topic
+                        AND timestamp < :cutoff_time
+                        """,
+                        {
+                            "cutoff_time": cutoff_time,
+                            "topic": topic,
+                        },
+                    )
+                    sqlite_conn.commit()
+                    time_of_last_purge = time.time()
+
                     cursor.execute(
                         """
                         DELETE
@@ -219,6 +268,7 @@ def request_handler(websocket):
                     )
                     sqlite_conn.commit()
                     time_of_last_purge = time.time()
+
                 except sqlite3.OperationalError:
                     # Database may be locked. Try again next time.
                     pass

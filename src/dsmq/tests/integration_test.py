@@ -1,10 +1,17 @@
 import multiprocessing as mp
+
+try:
+    # spawn is the default method on macOS,
+    # starting in Python 3.14 it will be the default in Linux too.
+    mp.set_start_method("spawn")
+except RuntimeError:
+    # Will throw an error if the start method has alraedy been set.
+    pass
+
 import time
 from dsmq.server import serve
 from dsmq.client import connect
 
-# spawn is the default method on macOS
-# mp.set_start_method('spawn')
 
 host = "127.0.0.1"
 port = 30303
@@ -53,6 +60,10 @@ def test_write_one_read_one():
     write_client = connect(host, port)
     read_client = connect(host, port)
 
+    msg = read_client.get("test")
+
+    assert msg == ""
+
     write_client.put("test", "test_msg")
 
     # It takes a moment for the write to complete
@@ -60,6 +71,10 @@ def test_write_one_read_one():
     msg = read_client.get("test")
 
     assert msg == "test_msg"
+
+    msg = read_client.get("test")
+
+    assert msg == ""
 
     write_client.shutdown_server()
     write_client.close()
@@ -77,6 +92,29 @@ def test_get_wait():
     msg = read_client.get_wait("test")
 
     assert msg == "test_msg"
+
+    write_client.shutdown_server()
+    write_client.close()
+    read_client.close()
+
+
+def test_get_latest():
+    p_server = mp.Process(target=serve, args=(host, port))
+    p_server.start()
+    write_client = connect(host, port)
+    read_client = connect(host, port)
+
+    for i in range(5):
+        write_client.put("test", f"test_msg {i}")
+
+    time.sleep(_pause)
+    msg = read_client.get_latest("test")
+
+    assert msg == "test_msg 4"
+
+    msg = read_client.get_latest("test")
+
+    assert msg == ""
 
     write_client.shutdown_server()
     write_client.close()
@@ -183,15 +221,8 @@ def test_speed_writing():
     p_speed_write.start()
     time.sleep(_pause)
 
-    # time_a = time.time()
     write_client.put("test", "test_msg")
-    # time_b = time.time()
     msg = read_client.get_wait("test")
-    # time_c = time.time()
-
-    # write_time = int((time_b - time_a) * 1e6)
-    # read_time = int((time_c - time_b) * 1e6)
-    # print(f"write time: {write_time} us,  read time: {read_time} us")
 
     assert msg == "test_msg"
 
@@ -221,15 +252,8 @@ def test_speed_reading():
     p_speed_read = mp.Process(target=speed_read, args=(stop_flag,))
     p_speed_read.start()
 
-    # time_a = time.time()
     write_client.put("test", "test_msg")
-    # time_b = time.time()
     msg = read_client.get_wait("test")
-    # time_c = time.time()
-
-    # write_time = int((time_b - time_a) * 1e6)
-    # read_time = int((time_c - time_b) * 1e6)
-    # print(f"write time: {write_time} us,  read time: {read_time} us")
 
     assert msg == "test_msg"
 
@@ -238,5 +262,8 @@ def test_speed_reading():
     p_speed_read.kill()
     read_client.close()
     write_client.shutdown_server()
-    # time.sleep(_pause)
     write_client.close()
+
+
+if __name__ == "__main__":
+    test_get_latest()

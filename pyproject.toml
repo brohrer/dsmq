@@ -1,6 +1,6 @@
 [project]
 name = "dsmq"
-version = "1.3.1"
+version = "1.4.0"
 description = "A dead simple message queue"
 readme = "README.md"
 requires-python = ">=3.10"

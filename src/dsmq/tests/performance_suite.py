@@ -1,4 +1,13 @@
 import multiprocessing as mp
+
+# spawn is the default method on macOS,
+# starting in Python 3.14 it will be the default in Linux too.
+try:
+    mp.set_start_method("spawn")
+except RuntimeError as e:
+    print(e)
+    print(f"Using multiprocessing start method: {mp.get_start_method()}")
+
 import time
 
 from dsmq.server import serve
@@ -11,8 +20,8 @@ verbose = False
 _pause = 0.01
 _very_long_pause = 1.0
 
-_n_iter = int(1e3)
-_n_long_char = int(1e4)
+_n_iter = int(1e4)
+_n_long_char = int(1e5)
 
 _short_msg = "q"
 _long_msg = str(["q"] * _n_long_char)

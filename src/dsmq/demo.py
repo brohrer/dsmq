@@ -1,7 +1,12 @@
 import multiprocessing as mp
-from dsmq.server import serve
-import dsmq.example_get_client
-import dsmq.example_put_client
+
+# spawn is the default method on macOS,
+# starting in Python 3.14 it will be the default in Linux too.
+mp.set_start_method("spawn")
+
+from dsmq.server import serve  # noqa: E402
+import dsmq.example_get_client  # noqa: E402
+import dsmq.example_put_client  # noqa: E402
 
 HOST = "127.0.0.1"
 PORT = 25252

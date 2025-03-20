@@ -18,6 +18,7 @@ def connect(host=_default_host, port=_default_port, verbose=False):
 class DSMQClientSideConnection:
     def __init__(self, host, port, verbose=False):
         self.uri = f"ws://{host}:{port}"
+        self.port = port
         self.verbose = verbose
         if self.verbose:
             print(f"Connecting to dsmq server at {self.uri}")
@@ -40,7 +41,11 @@ class DSMQClientSideConnection:
 
     def get(self, topic):
         msg = {"action": "get", "topic": topic}
-        self.websocket.send(json.dumps(msg))
+        try:
+            self.websocket.send(json.dumps(msg))
+        except ConnectionClosedError:
+            return ""
+
         try:
             msg_text = self.websocket.recv()
         except ConnectionClosedError:
@@ -48,6 +53,29 @@ class DSMQClientSideConnection:
             return ""
 
         msg = json.loads(msg_text)
+        return msg["message"]
+
+    def get_latest(self, topic):
+        """
+        A variant of `get()` that grabs the latest available message
+        (if there is one) rather than grabbing the oldest unread message.
+        It will not go back to read older ones on subsequent calls;
+        it will leave them unread.
+        """
+        msg = {"action": "get_latest", "topic": topic}
+        try:
+            self.websocket.send(json.dumps(msg))
+        except ConnectionClosedError:
+            return ""
+
+        try:
+            msg_text = self.websocket.recv()
+        except ConnectionClosedError:
+            self.close()
+            return ""
+
+        msg = json.loads(msg_text)
+
         return msg["message"]
 
     def get_wait(self, topic):
@@ -65,7 +93,10 @@ class DSMQClientSideConnection:
 
     def put(self, topic, msg_body):
         msg_dict = {"action": "put", "topic": topic, "message": msg_body}
-        self.websocket.send(json.dumps(msg_dict))
+        try:
+            self.websocket.send(json.dumps(msg_dict))
+        except ConnectionClosedError:
+            return
 
     def shutdown_server(self):
         msg_dict = {"action": "shutdown", "topic": ""}
