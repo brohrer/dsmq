@@ -5,8 +5,9 @@ import multiprocessing as mp
 try:
     mp.set_start_method("spawn")
 except RuntimeError as e:
-    print(e)
-    print(f"Using multiprocessing start method: {mp.get_start_method()}")
+    # print(e)
+    # print(f"Using multiprocessing start method: {mp.get_start_method()}")
+    pass
 
 import time
 

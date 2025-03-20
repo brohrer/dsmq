@@ -92,7 +92,8 @@ a queue before it connected.
 - A client will get the oldest message available on a requested topic.
 Queues are first-in-first-out.
 
-- Messages older than 600 seconds will be deleted from the queue.
+- Messages older than a certain age (typically 600 seconds)
+will be deleted from the queue.
 
 - Put and get operations are fairly quick--less than 100 $`\mu`$s of processing
 time plus any network latency--so it can comfortably handle requests at rates of

@@ -43,13 +43,14 @@ def serve(
     # These also make it more susceptible to corruption during shutdown,
     # but since dsmq is meant to be ephemeral, that's not a concern.
     # See https://www.sqlite.org/pragma.html
+    # After playing around with them, I'm not sure these have any noticeable effect.
     #
-    cursor.execute("PRAGMA journal_mode = OFF")
+    # cursor.execute("PRAGMA journal_mode = OFF")
     # cursor.execute("PRAGMA journal_mode = MEMORY")
     # cursor.execute("PRAGMA synchronous = NORMAL")
-    cursor.execute("PRAGMA synchronous = OFF")
-    cursor.execute("PRAGMA secure_delete = OFF")
-    cursor.execute("PRAGMA temp_store = MEMORY")
+    # cursor.execute("PRAGMA synchronous = OFF")
+    # cursor.execute("PRAGMA secure_delete = OFF")
+    # cursor.execute("PRAGMA temp_store = MEMORY")
 
     cursor.execute("""
 CREATE TABLE IF NOT EXISTS messages (timestamp DOUBLE, topic TEXT, message TEXT)
