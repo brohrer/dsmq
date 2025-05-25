@@ -13,6 +13,8 @@ _max_queue_length = 10
 _shutdown_pause = 1.0  # seconds
 _time_between_cleanup = 3.0  # seconds
 _time_to_keep = 0.3  # seconds
+# _time_between_cleanup = 60.0  # seconds
+# _time_to_keep = 10.0  # seconds
 
 # Make this global so it's easy to share
 dsmq_server = None

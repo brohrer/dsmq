@@ -4,9 +4,7 @@ import multiprocessing as mp
 # starting in Python 3.14 it will be the default in Linux too.
 try:
     mp.set_start_method("spawn")
-except RuntimeError as e:
-    # print(e)
-    # print(f"Using multiprocessing start method: {mp.get_start_method()}")
+except RuntimeError:
     pass
 
 import time

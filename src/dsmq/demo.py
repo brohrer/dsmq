@@ -3,7 +3,7 @@ import multiprocessing as mp
 # spawn is the default method on macOS,
 # starting in Python 3.14 it will be the default in Linux too.
 try:
-    mp.set_start_method('spawn')
+    mp.set_start_method("spawn")
 except RuntimeError:
     # Will throw an error if the start method has alraedy been set.
     pass
